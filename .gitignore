@@ -1,0 +1,43 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.swp
+*.swo
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Django
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.py[cod]
+__pycache__/
+local_settings.py
+db.sqlite3
+
+# Media / uploads
+media/
+staticfiles/
+
+# Environment variables
+.env
+
+# IDE / Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.DS_Store
+
+# PyCharm
+*.iml
+
+# Others
+*.bak
+*.tmp
