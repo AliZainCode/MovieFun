@@ -1,20 +1,42 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-
+from rest_framework import generics
 from .models import Movie
 from .serializers import MovieSerializer
-from .movie_scraper import scrape_all_movies
+from .pagination import MoviePagination
+from .filters import MovieFilter
+
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 
-class RunMovieScraperView(APIView):
-    def post(self, request):
-        scrape_all_movies()
-        return Response({"message": "Movie scraper executed successfully"})
+class MovieListView(generics.ListAPIView):
+
+    queryset = Movie.objects.all()
+    serializer_class = MovieSerializer
+    pagination_class = MoviePagination
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter,
+    ]
+
+    filterset_class = MovieFilter
+
+    search_fields = [
+        "title",
+        "description",
+        "genre"
+    ]
+
+    ordering_fields = [
+        "created_at",
+        "imdb_rating",
+        "release_date"
+    ]
 
 
-class MovieListView(APIView):
-    def get(self, request):
-        movies = Movie.objects.all()[:100]
-        serializer = MovieSerializer(movies, many=True)
-        return Response(serializer.data)
+class MovieDetailView(generics.RetrieveAPIView):
+
+    queryset = Movie.objects.all()
+    serializer_class = MovieSerializer
+    lookup_field = "subject_id"

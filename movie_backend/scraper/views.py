@@ -1,17 +1,42 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics
 from .models import TVSeries
 from .serializers import TVSeriesSerializer
-from .scraper_service import scrape_all_series
+from .pagination import TVSeriesPagination
+from .filters import TVSeriesFilter
 
-class RunScraperView(APIView):
-    def post(self, request):
-        scrape_all_series(max_pages=1)  # adjust pages
-        return Response({"message": "Scraping completed"}, status=200)
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
-class TVSeriesListView(APIView):
-    def get(self, request):
-        series = TVSeries.objects.all().order_by('-created_at')
-        serializer = TVSeriesSerializer(series, many=True)
-        return Response(serializer.data)
+
+class TVSeriesListView(generics.ListAPIView):
+
+    queryset = TVSeries.objects.all().order_by("-created_at")
+    serializer_class = TVSeriesSerializer
+    pagination_class = TVSeriesPagination
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter,
+    ]
+
+    filterset_class = TVSeriesFilter
+
+    search_fields = [
+        "title",
+        "description",
+        "genre"
+    ]
+
+    ordering_fields = [
+        "created_at",
+        "imdb_rating",
+        "release_date"
+    ]
+
+
+class TVSeriesDetailView(generics.RetrieveAPIView):
+
+    queryset = TVSeries.objects.all()
+    serializer_class = TVSeriesSerializer
+    lookup_field = "subject_id"

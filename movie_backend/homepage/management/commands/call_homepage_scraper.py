@@ -4,16 +4,14 @@ from django.core.management.base import BaseCommand
 from homepage.models import homepagemodel
 
 BASE_API = "https://h5-api.aoneroom.com/wefeed-h5api-bff"
-TOKEN = "YOUR_BEARER_TOKEN_HERE"  
+TOKEN = "YOUR_BEARER_TOKEN_HERE"
 
 HEADERS = {
-
     "User-Agent": "Mozilla/5.0",
     "Accept": "application/json",
     "Authorization": f"Bearer {TOKEN}",
     "Origin": "https://moviebox.ph",
     "Referer": "https://moviebox.ph/",
-
 }
 
 def safe_json(r):
@@ -30,17 +28,21 @@ def get_all_home_subjects():
         return []
 
     subjects = {}
+
     for section in data.get("data", {}).get("operatingList", []):
         t = section.get("type")
+
         if t == "BANNER" and section.get("banner"):
             for item in section["banner"].get("items", []):
                 s = item.get("subject", {})
                 if s.get("subjectId"):
                     subjects[s["subjectId"]] = s
+
         elif t == "SUBJECTS_MOVIE":
             for s in section.get("subjects", []):
                 if s.get("subjectId"):
                     subjects[s["subjectId"]] = s
+
     return list(subjects.values())
 
 def get_detail(detail_path):
@@ -52,18 +54,21 @@ def get_detail(detail_path):
     return data.get("data", {})
 
 class Command(BaseCommand):
-    help = "Scrape movies/series and store in DB"
+
+    help = "Sync homepage items"
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("⏳ Starting scraping...")
 
-        homepagemodel.objects.all().delete()
-        self.stdout.write("🗑 Cleared old movie/series data.")
+        print("Starting homepage sync...")
 
         home_subjects = get_all_home_subjects()
-        count = 0
+
+        new_ids = set()
+
+        position = 1
 
         for subject_item in home_subjects:
+
             detail_path = subject_item.get("detailPath")
             if not detail_path:
                 continue
@@ -73,6 +78,13 @@ class Command(BaseCommand):
                 continue
 
             subject = detail_data.get("subject", {})
+
+            subject_id = subject.get("subjectId")
+
+            if not subject_id:
+                continue
+
+            new_ids.add(subject_id)
 
             stars = (
                 detail_data.get("stars")
@@ -93,29 +105,41 @@ class Command(BaseCommand):
                 for s in stars
             ]
 
-            play_url = f"https://123movienow.cc/spa/videoPlayPage/movies/{subject.get('detailPath')}?id={subject.get('subjectId')}&type=/movie/detail"
+            play_url = f"https://123movienow.cc/spa/videoPlayPage/movies/{subject.get('detailPath')}?id={subject_id}&type=/movie/detail"
 
-
-            homepagemodel.objects.create(
-                title=subject.get("title", ""),
-                type="Movie" if subject.get("subjectType") == 1 else "TV Series",
-                genre=subject.get("genre", ""),
-                release_date=subject.get("releaseDate", ""),
-                country=subject.get("countryName", ""),
-                description=subject.get("description", ""),
-                imdb=subject.get("imdbRatingValue", ""),
-                imdb_votes=subject.get("imdbRatingCount", ""),
-                duration=subject.get("duration", ""),
-                cast=clean_cast,
-                trailer_url=subject.get("trailer", {}).get("videoAddress", {}).get("url", "") if subject.get("trailer") else "",
-                cover_image=subject.get("cover", {}).get("url", ""),
-                play_url=play_url,
-                subject_id=subject.get("subjectId", ""),
-                detail_path=subject.get("detailPath", ""),
+            obj, created = homepagemodel.objects.update_or_create(
+                subject_id=subject_id,
+                defaults={
+                    "title": subject.get("title", ""),
+                    "type": "Movie" if subject.get("subjectType") == 1 else "TV Series",
+                    "genre": subject.get("genre", ""),
+                    "release_date": subject.get("releaseDate", ""),
+                    "country": subject.get("countryName", ""),
+                    "description": subject.get("description", ""),
+                    "imdb": subject.get("imdbRatingValue", ""),
+                    "imdb_votes": subject.get("imdbRatingCount", ""),
+                    "duration": subject.get("duration", ""),
+                    "cast": clean_cast,
+                    "trailer_url": subject.get("trailer", {}).get("videoAddress", {}).get("url", "") if subject.get("trailer") else "",
+                    "cover_image": subject.get("cover", {}).get("url", ""),
+                    "play_url": play_url,
+                    "detail_path": subject.get("detailPath", ""),
+                    "position": position,
+                }
             )
 
-            count += 1
-            self.stdout.write(f"Saved: {subject.get('title')}")
-            time.sleep(1)  
+            if created:
+                print(f"[NEW] {subject.get('title')}")
+            else:
+                print(f"[UPDATED] {subject.get('title')}")
 
-        self.stdout.write(f"\n Total records saved: {count}")
+            position += 1
+
+            time.sleep(0.5)
+
+        deleted = homepagemodel.objects.exclude(subject_id__in=new_ids)
+        deleted_count = deleted.count()
+        deleted.delete()
+
+        print(f"Removed old items: {deleted_count}")
+        print("Homepage sync completed!")

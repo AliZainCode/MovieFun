@@ -1,9 +1,7 @@
 from django.urls import path
-from .views import RunMovieScraperView, MovieListView
+from .views import MovieListView, MovieDetailView
 
 urlpatterns = [
- 
-    path('run-scraper/', RunMovieScraperView.as_view(), name='run_movie_scraper'),
-
-    path('', MovieListView.as_view(), name='movie_list'),
+    path("", MovieListView.as_view()),
+    path("movies/<str:subject_id>/", MovieDetailView.as_view()),
 ]

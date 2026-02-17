@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import RunScraperView, TVSeriesListView
+from .views import TVSeriesListView, TVSeriesDetailView
 
 urlpatterns = [
-    path('run-scraper/', RunScraperView.as_view()),
-    path('series/', TVSeriesListView.as_view()),
+    path("", TVSeriesListView.as_view()),
+    path("series/<str:subject_id>/", TVSeriesDetailView.as_view()),
 ]
